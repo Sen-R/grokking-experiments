@@ -22,21 +22,23 @@ def get_strategy(tpu_address="local"):
 
 
 class EvaluatorCallback(tf.keras.callbacks.Callback):
-    def __init__(self, train, val):
+    def __init__(self, train, val, train_steps, val_steps):
         super().__init__()
         self._history = []
-        self._train = train.batch(len(train))
-        self._val = val.batch(len(val))
+        self._train = train
+        self._val = val
+        self._train_steps = train_steps
+        self._val_steps = val_steps
 
     def on_epoch_end(self, epoch, logs=None):
         print()
         print("Train metrics: ", end="")
         train_metrics = self.model.evaluate(
-            self._train, return_dict=True, verbose=2
+            self._train, return_dict=True, verbose=2, steps=self._train_steps
         )
         print("Val metrics:   ", end="")
         val_metrics = self.model.evaluate(
-            self._val, return_dict=True, verbose=2
+            self._val, return_dict=True, verbose=2, steps=self._val_steps
         )
         print()
 
@@ -103,37 +105,50 @@ def run_experiment(
     strategy = get_strategy(tpu_address)
 
     click.echo("Preparing dataset...")
+    # Obtain raw dataset
     all_equations = datasets.modular_division_dataset(p)
     n_equations = len(all_equations)
 
-    X = np.array([[equation.x, equation.y] for equation in all_equations])
-    y = np.array([equation.res for equation in all_equations])
+    # Shuffle and convert to np arrays
     np.random.seed(shuffle_seed)
-    shuffled_indices = np.random.choice(
-        n_equations, n_equations, replace=False
-    )
-    X = X[shuffled_indices]
-    y = y[shuffled_indices]
-    n_classes = tf.reduce_max(y).numpy() + 1
+    shuffled_idx = np.random.choice(n_equations, n_equations, replace=False)
+    X = np.array([[equation.x, equation.y] for equation in all_equations])[
+        shuffled_idx
+    ]
+    y = np.array([equation.res for equation in all_equations])[shuffled_idx]
+    n_classes = np.max(y) + 1
 
-    full_dataset = tf.data.Dataset.from_tensor_slices((X, y))
+    # Split and create TF datasets
     train_size = int(train_frac * len(all_equations))
-    train = full_dataset.take(train_size)
-    val = full_dataset.skip(train_size)
-    train_batch_size = min(train_batch_size, len(train))
+    train = tf.data.Dataset.from_tensor_slices(
+        (X[:train_size], y[:train_size])
+    )
+    val = tf.data.Dataset.from_tensor_slices((X[train_size:], y[train_size:]))
     click.echo(f"{n_classes:6d} classes.")
-    click.echo(f"{len(full_dataset):6d} equations.")
+    click.echo(f"{len(all_equations):6d} equations.")
     click.echo(f"{len(train):6d} training examples.")
     click.echo(f"{len(val):6d} validation examples.")
-
     _validate_datasets(train, val, all_equations)
+
+    # Batch and distribute datasets according to strategy
+    train_batch_size = min(train_batch_size, len(train))
+    val_batch_size = len(val)  # should be able to do in one pass
+    train_steps = len(train) // train_batch_size
+    val_steps = len(val) // val_batch_size
+    assert val_steps == 1  # should be 1 in this case
+    dtrain = strategy.experimental_distribute_dataset(
+        train.batch(train_batch_size).cache().repeat()
+    )
+    dval = strategy.experimental_distribute_dataset(
+        val.batch(val_batch_size).cache().repeat()
+    )
 
     click.echo("\nStarting training...")
     with strategy.scope():
         model = models.decoder_transformer_classifier(
             2, n_classes, n_classes, 2, 128, 4, 0.0
         )
-        evaluator = EvaluatorCallback(train, val)
+        evaluator = EvaluatorCallback(dtrain, dval, train_steps, val_steps)
         model.compile(
             loss=tf.keras.losses.SparseCategoricalCrossentropy(
                 from_logits=True
@@ -141,15 +156,15 @@ def run_experiment(
             optimizer=tf.keras.optimizers.Adam(),
             metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
         )
-    try:
-        model.fit(
-            train.batch(train_batch_size).repeat(),
-            epochs=epochs,
-            steps_per_epoch=steps_per_epoch,
-            callbacks=[evaluator],
-        )
-    except KeyboardInterrupt:
-        print("Training interrupted.")
+        try:
+            model.fit(
+                dtrain,
+                epochs=epochs,
+                steps_per_epoch=steps_per_epoch,
+                callbacks=[evaluator],
+            )
+        except KeyboardInterrupt:
+            print("Training interrupted.")
 
     print(f"Saving logs to: {metrics_log_file}.")
     evaluator.to_json(metrics_log_file)
