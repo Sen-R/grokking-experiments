@@ -18,6 +18,9 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
 @click.command
 @click.argument("results_dir", type=str)
 @click.option(
+    "--dataset", default="modular_division", type=str, help="Dataset to use."
+)
+@click.option(
     "--train-frac",
     required=True,
     type=float,
@@ -80,6 +83,7 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
 )
 def run_experiment(
     results_dir: str,
+    dataset: str,
     train_frac: float,
     shuffle_seed: int,
     p: int,
@@ -96,6 +100,8 @@ def run_experiment(
     steps_per_epoch: int,
     steps_per_execution: int,
 ) -> None:
+    if dataset != "modular_division":
+        raise ValueError("Only modular division dataset supported right now.")
     training_parameters = get_and_print_training_parameters(locals())
 
     click.echo("Preparing dataset...")
