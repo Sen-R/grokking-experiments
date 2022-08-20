@@ -1,4 +1,5 @@
 from typing import NamedTuple, Callable, List
+from .utils import modinv
 
 
 class Equation(NamedTuple):
@@ -19,7 +20,7 @@ def binary_operation_dataset(
 
 def _modular_div_op(p: int) -> Callable[[int, int], int]:
     def modular_div(x: int, y: int) -> int:
-        return (x * pow(y, -1, p)) % p
+        return (x * modinv(y, p)) % p
 
     return modular_div
 
