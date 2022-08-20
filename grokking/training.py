@@ -2,6 +2,7 @@ from typing import Sequence, Tuple, Dict, Any
 import json
 import os
 from pathlib import Path
+from datetime import datetime
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf  # type: ignore
@@ -38,21 +39,24 @@ class TrainingLogger(tf.keras.callbacks.Callback):
         super().__init__()
         self._train = train.batch(len(train)).cache()
         self._val = val.batch(len(val)).cache()
-        self._results_dir = Path(results_dir)
+        results_dir_p = Path(results_dir)
 
-        if not self._results_dir.is_dir():
+        if not results_dir_p.is_dir():
             raise ValueError(f"Directory doesn't exist: {results_dir}")
+
+        self.run_dir = results_dir_p / f"{datetime.now():%y%m%d%H%M%S}"
+        self.run_dir.mkdir()
 
         json.dump(training_parameters, self.params_file.open("w"))
         self.history_file.open("w")  # clear contents
 
     @property
     def params_file(self) -> Path:
-        return self._results_dir / "params.json"
+        return self.run_dir / "params.json"
 
     @property
     def history_file(self) -> Path:
-        return self._results_dir / "history.json"
+        return self.run_dir / "history.json"
 
     def on_epoch_end(self, epoch: int, logs=None) -> None:
         print()

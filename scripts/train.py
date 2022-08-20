@@ -133,7 +133,7 @@ def run_experiment(
         model = models.decoder_transformer_classifier(
             2, n_classes, n_classes, layers, width, heads, dropout
         )
-        evaluator = training.TrainingLogger(
+        logger = training.TrainingLogger(
             training_parameters, train, val, results_dir
         )
         model.compile(
@@ -154,12 +154,12 @@ def run_experiment(
                 dist_batched_train,
                 epochs=epochs,
                 steps_per_epoch=steps_per_epoch,
-                callbacks=[evaluator],
+                callbacks=[logger],
             )
         except KeyboardInterrupt:
             print("Training interrupted.")
 
-    print(f"Exiting, results saved to: {results_dir}.")
+    print(f"Exiting, results saved to: {logger.run_dir}.")
 
 
 if __name__ == "__main__":
