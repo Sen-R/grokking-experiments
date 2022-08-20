@@ -49,6 +49,8 @@ class TrainingLogger(tf.keras.callbacks.Callback):
 
         json.dump(training_parameters, self.params_file.open("w"))
         self.history_file.open("w")  # clear contents
+        self._save_data(self._train, "train.json")
+        self._save_data(self._val, "val.json")
 
     @property
     def params_file(self) -> Path:
@@ -57,6 +59,16 @@ class TrainingLogger(tf.keras.callbacks.Callback):
     @property
     def history_file(self) -> Path:
         return self.run_dir / "history.json"
+
+    @property
+    def data_dir(self) -> Path:
+        res = self.run_dir / "data"
+        res.mkdir(exist_ok=True)
+        return res
+
+    def _save_data(self, dataset, filename: str) -> None:
+        X, y = [t.numpy().tolist() for t in next(iter(dataset))]
+        json.dump([X, y], (self.data_dir / filename).open("w"))
 
     def on_epoch_end(self, epoch: int, logs=None) -> None:
         print()
