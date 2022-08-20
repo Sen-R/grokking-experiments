@@ -160,7 +160,12 @@ def run_experiment(
             loss=tf.keras.losses.SparseCategoricalCrossentropy(
                 from_logits=True
             ),
-            optimizer=tf.keras.optimizers.Adam(),
+            optimizer=tf.keras.optimizers.Adam(
+                learning_rate=0.001,
+                beta_1=0.9,
+                beta_2=0.98,
+                epsilon=1e-8,
+            ),
             metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
             steps_per_execution=steps_per_execution,  # accelerate training
         )
