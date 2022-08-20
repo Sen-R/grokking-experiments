@@ -1,6 +1,7 @@
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Dict, Any
 import json
 import os
+from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf  # type: ignore
@@ -26,32 +27,47 @@ def _get_strategy():
 strategy = _get_strategy()  # Set up once when module is loaded
 
 
-class EvaluatorCallback(tf.keras.callbacks.Callback):
+class TrainingLogger(tf.keras.callbacks.Callback):
     def __init__(
-        self, train, val, train_steps: int, val_steps: int, log_file: str
+        self,
+        training_parameters: Dict[str, Any],
+        train,
+        val,
+        results_dir: str,
     ):
         super().__init__()
-        self._train = train
-        self._val = val
-        self._train_steps = train_steps
-        self._val_steps = val_steps
-        self._log_file = log_file
-        open(self._log_file, "w").close()  # Clear contents
+        self._train = train.batch(len(train)).cache()
+        self._val = val.batch(len(val)).cache()
+        self._results_dir = Path(results_dir)
+
+        if not self._results_dir.is_dir():
+            raise ValueError(f"Directory doesn't exist: {results_dir}")
+
+        json.dump(training_parameters, self.params_file.open("w"))
+        self.history_file.open("w")  # clear contents
+
+    @property
+    def params_file(self) -> Path:
+        return self._results_dir / "params.json"
+
+    @property
+    def history_file(self) -> Path:
+        return self._results_dir / "history.json"
 
     def on_epoch_end(self, epoch: int, logs=None) -> None:
         print()
         print("Train metrics: ", end="")
         train_metrics = self.model.evaluate(
-            self._train, return_dict=True, verbose=2, steps=self._train_steps
+            self._train, return_dict=True, verbose=2, steps=1
         )
         print("Val metrics:   ", end="")
         val_metrics = self.model.evaluate(
-            self._val, return_dict=True, verbose=2, steps=self._val_steps
+            self._val, return_dict=True, verbose=2, steps=1
         )
         print()
 
-        record = {"train": train_metrics, "val": val_metrics}
-        with open(self._log_file, "a") as f:
+        record = {"epoch": epoch, "train": train_metrics, "val": val_metrics}
+        with self.history_file.open("a") as f:
             f.write(json.dumps(record) + "\n")
 
 

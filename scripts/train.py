@@ -7,7 +7,7 @@ from grokking import datasets, models, training
 
 def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
     params = args.copy()
-    params.pop("metrics_log_file")
+    params.pop("results_dir")
     click.echo("Training called with parameters:")
     for k, v in params.items():
         click.echo(f"  {k}: {v}")
@@ -16,7 +16,7 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @click.command
-@click.argument("metrics_log_file", type=str)
+@click.argument("results_dir", type=str)
 @click.option(
     "--train-frac",
     required=True,
@@ -79,7 +79,7 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
     help="Steps per inner loop execution.",
 )
 def run_experiment(
-    metrics_log_file: str,
+    results_dir: str,
     train_frac: float,
     shuffle_seed: int,
     p: int,
@@ -124,11 +124,8 @@ def run_experiment(
     train_steps = len(train) // train_batch_size
     val_steps = len(val) // val_batch_size
     assert val_steps == 1  # should be 1 in this case
-    dtrain = training.strategy.experimental_distribute_dataset(
+    dist_batched_train = training.strategy.experimental_distribute_dataset(
         train.batch(train_batch_size).cache().repeat()
-    )
-    dval = training.strategy.experimental_distribute_dataset(
-        val.batch(val_batch_size).cache().repeat()
     )
 
     click.echo("\nStarting training...")
@@ -136,8 +133,8 @@ def run_experiment(
         model = models.decoder_transformer_classifier(
             2, n_classes, n_classes, layers, width, heads, dropout
         )
-        evaluator = training.EvaluatorCallback(
-            dtrain, dval, train_steps, val_steps, metrics_log_file
+        evaluator = training.TrainingLogger(
+            training_parameters, train, val, results_dir
         )
         model.compile(
             loss=tf.keras.losses.SparseCategoricalCrossentropy(
@@ -154,7 +151,7 @@ def run_experiment(
         )
         try:
             model.fit(
-                dtrain,
+                dist_batched_train,
                 epochs=epochs,
                 steps_per_epoch=steps_per_epoch,
                 callbacks=[evaluator],
@@ -162,7 +159,7 @@ def run_experiment(
         except KeyboardInterrupt:
             print("Training interrupted.")
 
-    print(f"Exiting, logs saved to: {metrics_log_file}.")
+    print(f"Exiting, results saved to: {results_dir}.")
 
 
 if __name__ == "__main__":
