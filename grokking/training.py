@@ -1,23 +1,25 @@
 from typing import Sequence, Tuple
 import json
+import os
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf  # type: ignore
 
 
-def get_strategy(tpu_address="local"):
-    """Return TPU strategy if possible, else default strategy."""
-    try:
+def get_strategy():
+    """Return TPU strategy if TPU_ADDRESS set, else default strategy."""
+    tpu_address = os.getenv("TPU_ADDRESS")
+    if tpu_address is not None:
+        print("Trying to set up TPU strategy...")
         resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
             tpu_address
         )
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
         strategy = tf.distribute.TPUStrategy(resolver)
-    except (tf.errors.NotFoundError, ValueError):
-        print("No TPU found, backing off to default strategy.")
+    else:
         strategy = tf.distribute.get_strategy()
-    print("All devices", tf.config.list_logical_devices(), "\n\n")
+    print("All devices:", tf.config.list_logical_devices(), "\n\n")
     return strategy
 
 

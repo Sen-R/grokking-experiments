@@ -30,6 +30,30 @@ from grokking import datasets, models, training
     type=int,
     help="Maximum batch size (could be smaller for small datasets).",
 )
+@click.option(
+    "--layers", type=int, default=2, help="Number of transformer layers."
+)
+@click.option(
+    "--width", type=int, default=128, help="Transformer feature dimension."
+)
+@click.option(
+    "--heads", type=int, default=4, help="Number of attention heads."
+)
+@click.option(
+    "--dropout", type=float, default=0.0, help="Dropout probability."
+)
+@click.option(
+    "--learning-rate", type=float, default=1e-3, help="Learning rate."
+)
+@click.option(
+    "--beta_1", type=float, default=0.9, help="Adam beta_1 parameter."
+)
+@click.option(
+    "--beta_2", type=float, default=0.98, help="Adam beta_2 parameter."
+)
+@click.option(
+    "--epsilon", type=float, default=0.9, help="Adam epsilon parameter."
+)
 @click.option("--epochs", default=500, type=int, help="Number of epochs.")
 @click.option(
     "--steps-per-epoch",
@@ -43,19 +67,27 @@ from grokking import datasets, models, training
     type=int,
     help="Steps per inner loop execution.",
 )
-@click.option("--tpu-address", default="", type=str, help="TPU address.")
 def run_experiment(
     metrics_log_file: str,
     train_frac: float,
     shuffle_seed: int,
     p: int,
+    layers: int,
+    width: int,
+    heads: int,
+    dropout: float,
+    learning_rate: float,
+    beta_1: float,
+    beta_2: float,
+    epsilon: float,
     train_batch_size: int,
     epochs: int,
     steps_per_epoch: int,
     steps_per_execution: int,
-    tpu_address: str,
 ) -> None:
-    strategy = training.get_strategy(tpu_address)
+    call_args = locals()
+    print(call_args)
+    strategy = training.get_strategy()
 
     click.echo("Preparing dataset...")
     # Obtain raw dataset and convert to numpy features and targets
@@ -93,7 +125,7 @@ def run_experiment(
     click.echo("\nStarting training...")
     with strategy.scope():
         model = models.decoder_transformer_classifier(
-            2, n_classes, n_classes, 2, 128, 4, 0.0
+            2, n_classes, n_classes, layers, width, heads, dropout
         )
         evaluator = training.EvaluatorCallback(
             dtrain, dval, train_steps, val_steps, metrics_log_file
@@ -103,10 +135,10 @@ def run_experiment(
                 from_logits=True
             ),
             optimizer=tf.keras.optimizers.Adam(
-                learning_rate=0.001,
-                beta_1=0.9,
-                beta_2=0.98,
-                epsilon=1e-8,
+                learning_rate=learning_rate,
+                beta_1=beta_1,
+                beta_2=beta_2,
+                epsilon=epsilon,
             ),
             metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
             steps_per_execution=steps_per_execution,  # accelerate training
