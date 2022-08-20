@@ -100,6 +100,8 @@ def run_experiment(
     steps_per_epoch: int,
     tpu_address: str,
 ) -> None:
+    strategy = get_strategy(tpu_address)
+
     click.echo("Preparing dataset...")
     all_equations = datasets.modular_division_dataset(p)
     n_equations = len(all_equations)
@@ -127,7 +129,6 @@ def run_experiment(
     _validate_datasets(train, val, all_equations)
 
     click.echo("\nStarting training...")
-    strategy = get_strategy(tpu_address)
     with strategy.scope():
         model = models.decoder_transformer_classifier(
             2, n_classes, n_classes, 2, 128, 4, 0.0
