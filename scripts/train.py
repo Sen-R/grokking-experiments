@@ -89,6 +89,7 @@ def _validate_datasets(train, val, all_equations):
     type=int,
     help="Number of optimization steps per epoch.",
 )
+@click.option("--tpu-address", default="", type=str, help="TPU address.")
 def run_experiment(
     metrics_log_file: str,
     train_frac: float,
@@ -97,6 +98,7 @@ def run_experiment(
     train_batch_size: int,
     epochs: int,
     steps_per_epoch: int,
+    tpu_address: str
 ) -> None:
     click.echo("Preparing dataset...")
     all_equations = datasets.modular_division_dataset(p)
@@ -125,7 +127,7 @@ def run_experiment(
     _validate_datasets(train, val, all_equations)
 
     click.echo("\nStarting training...")
-    strategy = get_strategy("")
+    strategy = get_strategy(tpu_address)
     with strategy.scope():
         model = models.decoder_transformer_classifier(
             2, n_classes, n_classes, 2, 128, 4, 0.0
