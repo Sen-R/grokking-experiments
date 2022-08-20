@@ -98,7 +98,7 @@ def run_experiment(
     train_batch_size: int,
     epochs: int,
     steps_per_epoch: int,
-    tpu_address: str
+    tpu_address: str,
 ) -> None:
     click.echo("Preparing dataset...")
     all_equations = datasets.modular_division_dataset(p)
