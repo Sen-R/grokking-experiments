@@ -1,59 +1,7 @@
 import click
-import json
 import numpy as np
 import tensorflow as tf  # type: ignore
-from grokking import datasets, models
-
-
-def get_strategy(tpu_address="local"):
-    """Return TPU strategy if possible, else default strategy."""
-    try:
-        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-            tpu_address
-        )
-        tf.config.experimental_connect_to_cluster(resolver)
-        tf.tpu.experimental.initialize_tpu_system(resolver)
-        strategy = tf.distribute.TPUStrategy(resolver)
-    except (tf.errors.NotFoundError, ValueError):
-        print("No TPU found, backing off to default strategy.")
-        strategy = tf.distribute.get_strategy()
-    print("All devices", tf.config.list_logical_devices(), "\n\n")
-    return strategy
-
-
-class EvaluatorCallback(tf.keras.callbacks.Callback):
-    def __init__(self, train, val, train_steps, val_steps, log_file):
-        super().__init__()
-        self._train = train
-        self._val = val
-        self._train_steps = train_steps
-        self._val_steps = val_steps
-        self._log_file = log_file
-        open(self._log_file, "w").close()  # Clear contents
-
-    def on_epoch_end(self, epoch, logs=None):
-        print()
-        print("Train metrics: ", end="")
-        train_metrics = self.model.evaluate(
-            self._train, return_dict=True, verbose=2, steps=self._train_steps
-        )
-        print("Val metrics:   ", end="")
-        val_metrics = self.model.evaluate(
-            self._val, return_dict=True, verbose=2, steps=self._val_steps
-        )
-        print()
-
-        record = {"train": train_metrics, "val": val_metrics}
-        with open(self._log_file, "a") as f:
-            f.write(json.dumps(record) + "\n")
-
-
-def _validate_datasets(train, val, all_equations):
-    train_X = {tuple(e[0].numpy()) for e in train}
-    val_X = {tuple(e[0].numpy()) for e in val}
-    all_X = {(e.x, e.y) for e in all_equations}
-    assert train_X & val_X == set()
-    assert train_X | val_X == all_X
+from grokking import datasets, models, training
 
 
 @click.command
@@ -107,33 +55,27 @@ def run_experiment(
     steps_per_execution: int,
     tpu_address: str,
 ) -> None:
-    strategy = get_strategy(tpu_address)
+    strategy = training.get_strategy(tpu_address)
 
     click.echo("Preparing dataset...")
-    # Obtain raw dataset
+    # Obtain raw dataset and convert to numpy features and targets
     all_equations = datasets.modular_division_dataset(p)
-    n_equations = len(all_equations)
-
-    # Shuffle and convert to np arrays
-    np.random.seed(shuffle_seed)
-    shuffled_idx = np.random.choice(n_equations, n_equations, replace=False)
-    X = np.array([[equation.x, equation.y] for equation in all_equations])[
-        shuffled_idx
-    ]
-    y = np.array([equation.res for equation in all_equations])[shuffled_idx]
+    X = np.array([[equation.x, equation.y] for equation in all_equations])
+    y = np.array([equation.res for equation in all_equations])
     n_classes = np.max(y) + 1
 
-    # Split and create TF datasets
-    train_size = int(train_frac * len(all_equations))
-    train = tf.data.Dataset.from_tensor_slices(
-        (X[:train_size], y[:train_size])
-    )
-    val = tf.data.Dataset.from_tensor_slices((X[train_size:], y[train_size:]))
+    # Shuffle, split and create TF datasets
+    X, y = training.shuffle((X, y), seed=shuffle_seed)
+    train, val = [
+        tf.data.Dataset.from_tensor_slices(ds)
+        for ds in training.train_test_split((X, y), train_frac=train_frac)
+    ]
+
+    # Print dataset characteristics
     click.echo(f"{n_classes:6d} classes.")
     click.echo(f"{len(all_equations):6d} equations.")
     click.echo(f"{len(train):6d} training examples.")
     click.echo(f"{len(val):6d} validation examples.")
-    _validate_datasets(train, val, all_equations)
 
     # Batch and distribute datasets according to strategy
     train_batch_size = min(train_batch_size, len(train))
@@ -153,7 +95,7 @@ def run_experiment(
         model = models.decoder_transformer_classifier(
             2, n_classes, n_classes, 2, 128, 4, 0.0
         )
-        evaluator = EvaluatorCallback(
+        evaluator = training.EvaluatorCallback(
             dtrain, dval, train_steps, val_steps, metrics_log_file
         )
         model.compile(
