@@ -17,7 +17,7 @@ def get_strategy(tpu_address="local"):
     except (tf.errors.NotFoundError, ValueError):
         print("No TPU found, backing off to default strategy.")
         strategy = tf.distribute.get_strategy()
-    print("All devices", tf.config.list_logical_devices())
+    print("All devices", tf.config.list_logical_devices(), "\n\n")
     return strategy
 
 
@@ -46,6 +46,14 @@ class EvaluatorCallback(tf.keras.callbacks.Callback):
     def to_json(self, filename):
         with open(filename, "w") as f:
             json.dump(self._history, f)
+
+
+def _validate_datasets(train, val, all_equations):
+    train_X = {tuple(e[0].numpy()) for e in train}
+    val_X = {tuple(e[0].numpy()) for e in val}
+    all_X = {(e.x, e.y) for e in all_equations}
+    assert train_X & val_X == set()
+    assert train_X | val_X == all_X
 
 
 @click.command
@@ -90,8 +98,7 @@ def run_experiment(
     epochs: int,
     steps_per_epoch: int,
 ) -> None:
-    strategy = get_strategy("")
-
+    click.echo("Preparing dataset...")
     all_equations = datasets.modular_division_dataset(p)
     n_equations = len(all_equations)
 
@@ -104,25 +111,21 @@ def run_experiment(
     X = X[shuffled_indices]
     y = y[shuffled_indices]
     n_classes = tf.reduce_max(y).numpy() + 1
-    click.echo(f"n_classes: {n_classes}")
 
     full_dataset = tf.data.Dataset.from_tensor_slices((X, y))
     train_size = int(train_frac * len(all_equations))
     train = full_dataset.take(train_size)
     val = full_dataset.skip(train_size)
     train_batch_size = min(train_batch_size, len(train))
+    click.echo(f"{n_classes:6d} classes.")
     click.echo(f"{len(full_dataset):6d} equations.")
     click.echo(f"{len(train):6d} training examples.")
     click.echo(f"{len(val):6d} validation examples.")
 
-    # Validate dataset split integrity
-    train_X = {tuple(e[0].numpy()) for e in train}
-    val_X = {tuple(e[0].numpy()) for e in val}
-    all_X = {(e.x, e.y) for e in all_equations}
-    assert train_X & val_X == set()
-    assert train_X | val_X == all_X
+    _validate_datasets(train, val, all_equations)
 
     click.echo("\nStarting training...")
+    strategy = get_strategy("")
     with strategy.scope():
         model = models.decoder_transformer_classifier(
             2, n_classes, n_classes, 2, 128, 4, 0.0
