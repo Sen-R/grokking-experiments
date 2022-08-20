@@ -92,10 +92,10 @@ def _validate_datasets(train, val, all_equations):
     help="Number of optimization steps per epoch.",
 )
 @click.option(
-    "--steps_per_execution",
-    default=100,
+    "--steps-per-execution",
+    default=1,
     type=int,
-    help="Steps per inner loop execution."
+    help="Steps per inner loop execution.",
 )
 @click.option("--tpu-address", default="", type=str, help="TPU address.")
 def run_experiment(
