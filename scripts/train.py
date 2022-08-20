@@ -144,10 +144,10 @@ def run_experiment(
     val_steps = len(val) // val_batch_size
     assert val_steps == 1  # should be 1 in this case
     dtrain = strategy.experimental_distribute_dataset(
-        train.batch(train_batch_size).repeat()
+        train.batch(train_batch_size).cache().repeat()
     )
     dval = strategy.experimental_distribute_dataset(
-        val.batch(val_batch_size).repeat()
+        val.batch(val_batch_size).cache().repeat()
     )
 
     click.echo("\nStarting training...")
