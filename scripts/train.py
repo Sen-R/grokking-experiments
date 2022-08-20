@@ -5,11 +5,14 @@ import tensorflow as tf  # type: ignore
 from grokking import datasets, models, training
 
 
-def print_training_parameters(params: Dict[str, Any]) -> None:
+def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
+    params = args.copy()
+    params.pop("metrics_log_file")
     click.echo("Training called with parameters:")
     for k, v in params.items():
         click.echo(f"  {k}: {v}")
     click.echo()
+    return params
 
 
 @click.command
@@ -93,8 +96,7 @@ def run_experiment(
     steps_per_epoch: int,
     steps_per_execution: int,
 ) -> None:
-    call_args = locals()
-    print_training_parameters(call_args)
+    training_parameters = get_and_print_training_parameters(locals())
 
     click.echo("Preparing dataset...")
     # Obtain raw dataset and convert to numpy features and targets
