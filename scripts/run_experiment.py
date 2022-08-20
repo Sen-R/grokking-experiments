@@ -5,6 +5,22 @@ import tensorflow as tf  # type: ignore
 from grokking import datasets, models
 
 
+def get_strategy(tpu_address="local"):
+    """Return TPU strategy if possible, else default strategy."""
+    try:
+        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
+            tpu_address
+        )
+        tf.config.experimental_connect_to_cluster(resolver)
+        tf.tpu.experimental.initialize_tpu_system(resolver)
+        strategy = tf.distribute.TPUStrategy(resolver)
+    except (tf.errors.NotFoundError, ValueError):
+        print("No TPU found, backing off to default strategy.")
+        strategy = tf.distribute.get_strategy()
+    print("All devices", tf.config.list_logical_devices())
+    return strategy
+
+
 class EvaluatorCallback(tf.keras.callbacks.Callback):
     def __init__(self, train, val):
         super().__init__()
@@ -74,6 +90,8 @@ def run_experiment(
     epochs: int,
     steps_per_epoch: int,
 ) -> None:
+    strategy = get_strategy("")
+
     all_equations = datasets.modular_division_dataset(p)
     n_equations = len(all_equations)
 
@@ -105,15 +123,18 @@ def run_experiment(
     assert train_X | val_X == all_X
 
     click.echo("\nStarting training...")
-    model = models.decoder_transformer_classifier(
-        2, n_classes, n_classes, 2, 128, 4, 0.0
-    )
-    evaluator = EvaluatorCallback(train, val)
-    model.compile(
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        optimizer=tf.keras.optimizers.Adam(),
-        metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
-    )
+    with strategy.scope():
+        model = models.decoder_transformer_classifier(
+            2, n_classes, n_classes, 2, 128, 4, 0.0
+        )
+        evaluator = EvaluatorCallback(train, val)
+        model.compile(
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(
+                from_logits=True
+            ),
+            optimizer=tf.keras.optimizers.Adam(),
+            metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
+        )
     try:
         model.fit(
             train.batch(train_batch_size).repeat(),
