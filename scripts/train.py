@@ -22,13 +22,14 @@ def get_strategy(tpu_address="local"):
 
 
 class EvaluatorCallback(tf.keras.callbacks.Callback):
-    def __init__(self, train, val, train_steps, val_steps):
+    def __init__(self, train, val, train_steps, val_steps, log_file):
         super().__init__()
-        self._history = []
         self._train = train
         self._val = val
         self._train_steps = train_steps
         self._val_steps = val_steps
+        self._log_file = log_file
+        open(self._log_file, "w").close()  # Clear contents
 
     def on_epoch_end(self, epoch, logs=None):
         print()
@@ -43,11 +44,8 @@ class EvaluatorCallback(tf.keras.callbacks.Callback):
         print()
 
         record = {"train": train_metrics, "val": val_metrics}
-        self._history.append(record)
-
-    def to_json(self, filename):
-        with open(filename, "w") as f:
-            json.dump(self._history, f)
+        with open(self._log_file, "a") as f:
+            f.write(json.dumps(record) + "\n")
 
 
 def _validate_datasets(train, val, all_equations):
@@ -155,7 +153,9 @@ def run_experiment(
         model = models.decoder_transformer_classifier(
             2, n_classes, n_classes, 2, 128, 4, 0.0
         )
-        evaluator = EvaluatorCallback(dtrain, dval, train_steps, val_steps)
+        evaluator = EvaluatorCallback(
+            dtrain, dval, train_steps, val_steps, metrics_log_file
+        )
         model.compile(
             loss=tf.keras.losses.SparseCategoricalCrossentropy(
                 from_logits=True
@@ -174,8 +174,7 @@ def run_experiment(
         except KeyboardInterrupt:
             print("Training interrupted.")
 
-    print(f"Saving logs to: {metrics_log_file}.")
-    evaluator.to_json(metrics_log_file)
+    print(f"Exiting, logs saved to: {metrics_log_file}.")
 
 
 if __name__ == "__main__":
