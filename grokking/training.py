@@ -66,6 +66,12 @@ class TrainingLogger(tf.keras.callbacks.Callback):
         res.mkdir(exist_ok=True)
         return res
 
+    @property
+    def checkpoints_dir(self) -> Path:
+        res = self.run_dir / "checkpoints"
+        res.mkdir(exist_ok=True)
+        return res
+
     def _save_data(self, dataset, filename: str) -> None:
         X, y = [t.numpy().tolist() for t in next(iter(dataset))]
         json.dump([X, y], (self.data_dir / filename).open("w"))
@@ -85,6 +91,11 @@ class TrainingLogger(tf.keras.callbacks.Callback):
         record = {"epoch": epoch, "train": train_metrics, "val": val_metrics}
         with self.history_file.open("a") as f:
             f.write(json.dumps(record) + "\n")
+
+        if epoch % 10 == 0:
+            self.model.save_weights(
+                self.checkpoints_dir / f"weights-at-epoch-{epoch:04d}"
+            )
 
 
 def _get_n_rows(args: Sequence[npt.NDArray]) -> int:
