@@ -95,7 +95,6 @@ def run_experiment(
 ) -> None:
     call_args = locals()
     print_training_parameters(call_args)
-    strategy = training.get_strategy()
 
     click.echo("Preparing dataset...")
     # Obtain raw dataset and convert to numpy features and targets
@@ -123,15 +122,15 @@ def run_experiment(
     train_steps = len(train) // train_batch_size
     val_steps = len(val) // val_batch_size
     assert val_steps == 1  # should be 1 in this case
-    dtrain = strategy.experimental_distribute_dataset(
+    dtrain = training.strategy.experimental_distribute_dataset(
         train.batch(train_batch_size).cache().repeat()
     )
-    dval = strategy.experimental_distribute_dataset(
+    dval = training.strategy.experimental_distribute_dataset(
         val.batch(val_batch_size).cache().repeat()
     )
 
     click.echo("\nStarting training...")
-    with strategy.scope():
+    with training.strategy.scope():
         model = models.decoder_transformer_classifier(
             2, n_classes, n_classes, layers, width, heads, dropout
         )

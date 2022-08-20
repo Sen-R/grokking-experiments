@@ -6,7 +6,7 @@ import numpy.typing as npt
 import tensorflow as tf  # type: ignore
 
 
-def get_strategy():
+def _get_strategy():
     """Return TPU strategy if TPU_ADDRESS set, else default strategy."""
     tpu_address = os.getenv("TPU_ADDRESS")
     if tpu_address is not None:
@@ -21,6 +21,9 @@ def get_strategy():
         strategy = tf.distribute.get_strategy()
     print("All devices:", tf.config.list_logical_devices(), "\n\n")
     return strategy
+
+
+strategy = _get_strategy()  # Set up once when module is loaded
 
 
 class EvaluatorCallback(tf.keras.callbacks.Callback):
