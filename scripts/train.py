@@ -91,6 +91,12 @@ def _validate_datasets(train, val, all_equations):
     type=int,
     help="Number of optimization steps per epoch.",
 )
+@click.option(
+    "--steps_per_execution",
+    default=100,
+    type=int,
+    help="Steps per inner loop execution."
+)
 @click.option("--tpu-address", default="", type=str, help="TPU address.")
 def run_experiment(
     metrics_log_file: str,
@@ -100,6 +106,7 @@ def run_experiment(
     train_batch_size: int,
     epochs: int,
     steps_per_epoch: int,
+    steps_per_execution: int,
     tpu_address: str,
 ) -> None:
     strategy = get_strategy(tpu_address)
@@ -137,10 +144,10 @@ def run_experiment(
     val_steps = len(val) // val_batch_size
     assert val_steps == 1  # should be 1 in this case
     dtrain = strategy.experimental_distribute_dataset(
-        train.batch(train_batch_size).cache().repeat()
+        train.batch(train_batch_size).repeat()
     )
     dval = strategy.experimental_distribute_dataset(
-        val.batch(val_batch_size).cache().repeat()
+        val.batch(val_batch_size).repeat()
     )
 
     click.echo("\nStarting training...")
@@ -155,6 +162,7 @@ def run_experiment(
             ),
             optimizer=tf.keras.optimizers.Adam(),
             metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
+            steps_per_execution=steps_per_execution,  # accelerate training
         )
         try:
             model.fit(
