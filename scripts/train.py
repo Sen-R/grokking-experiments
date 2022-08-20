@@ -1,7 +1,15 @@
+from typing import Dict, Any
 import click
 import numpy as np
 import tensorflow as tf  # type: ignore
 from grokking import datasets, models, training
+
+
+def print_training_parameters(params: Dict[str, Any]) -> None:
+    click.echo("Training called with parameters:")
+    for k, v in params.items():
+        click.echo(f"  {k}: {v}")
+    click.echo()
 
 
 @click.command
@@ -86,7 +94,7 @@ def run_experiment(
     steps_per_execution: int,
 ) -> None:
     call_args = locals()
-    print(call_args)
+    print_training_parameters(call_args)
     strategy = training.get_strategy()
 
     click.echo("Preparing dataset...")
