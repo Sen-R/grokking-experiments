@@ -67,7 +67,7 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
     "--beta_2", type=float, default=0.98, help="Adam beta_2 parameter."
 )
 @click.option(
-    "--epsilon", type=float, default=0.9, help="Adam epsilon parameter."
+    "--epsilon", type=float, default=1e-8, help="Adam epsilon parameter."
 )
 @click.option("--epochs", default=500, type=int, help="Number of epochs.")
 @click.option(
