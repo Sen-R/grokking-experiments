@@ -11,21 +11,21 @@ def transformer_layer(
     dropout: Optional[float] = None,
 ):
     # MHA block
-    ln_1_out = layers.LayerNormalization()(inputs)
     mha_out = layers.MultiHeadAttention(
         key_dim=width // heads, num_heads=heads, dropout=dropout
-    )(ln_1_out, ln_1_out, attention_mask=attention_mask)
-    mha_post_dropout = layers.Dropout(dropout)(mha_out)
-    mha_block_out = layers.add([mha_post_dropout, inputs])  # resid connection
+    )(inputs, inputs, attention_mask=attention_mask)
+    mha_dropout = layers.Dropout(dropout)(mha_out)
+    mha_add = layers.add([mha_dropout, inputs])
+    mha_ln = layers.LayerNormalization()(mha_add)
 
     # FF block
-    ln_2_out = layers.LayerNormalization()(mha_block_out)
-    dense_1_out = layers.Dense(width, activation="relu")(ln_2_out)
-    dense_1_post_dropout = layers.Dropout(dropout)(dense_1_out)
-    dense_2_out = layers.Dense(width)(dense_1_post_dropout)
-    ff_block_out = layers.add([dense_2_out, mha_block_out])  # resid conn
+    dense_1_out = layers.Dense(width, activation="relu")(mha_ln)
+    dense_2_out = layers.Dense(width)(dense_1_out)
+    ff_dropout = layers.Dropout(dropout)(dense_2_out)
+    ff_add = layers.add([ff_dropout, mha_ln])
+    ff_ln = layers.LayerNormalization()(ff_add)
 
-    return ff_block_out
+    return ff_ln
 
 
 def decoder_transformer_classifier(
@@ -42,5 +42,5 @@ def decoder_transformer_classifier(
     x = layers.Embedding(vocabulary_size, width)(inputs)
     for _ in range(n_layers):
         x = transformer_layer(x, width, heads, attention_mask, dropout)
-    logits = layers.Dense(n_classes)(x[..., -1, :])
+    logits = layers.Dense(n_classes, name="to_logits")(x[..., -1, :])
     return tf.keras.Model(inputs=[inputs], outputs=[logits])
