@@ -121,7 +121,8 @@ class TrainingLogger(tf.keras.callbacks.Callback):
 
         if epoch % 10 == 0:
             self.model.save_weights(
-                self.checkpoints_dir / f"weights-at-epoch-{epoch:04d}"
+                self.checkpoints_dir / f"weights-at-epoch-{epoch:04d}",
+                tf.train.CheckpointOptions(experimental_io_device=None),
             )
 
 
