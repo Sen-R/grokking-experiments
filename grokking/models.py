@@ -13,7 +13,7 @@ def transformer_layer(
     # MHA block
     ln_1_out = layers.LayerNormalization()(inputs)
     mha_out = layers.MultiHeadAttention(
-        key_dim=width, num_heads=heads, dropout=dropout
+        key_dim=width // heads, num_heads=heads, dropout=dropout
     )(ln_1_out, ln_1_out, attention_mask=attention_mask)
     mha_post_dropout = layers.Dropout(dropout)(mha_out)
     mha_block_out = layers.add([mha_post_dropout, inputs])  # resid connection
