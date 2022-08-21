@@ -28,6 +28,15 @@ def _get_strategy():
 strategy = _get_strategy()  # Set up once when module is loaded
 
 
+def rowwise_cosine_similarity(embedding_matrix: tf.Tensor) -> tf.Tensor:
+    """Cosine similarities across rows of input matrix."""
+    normalised_matrix, _ = tf.linalg.normalize(embedding_matrix, axis=1)
+    pairwise_dot_products = tf.matmul(
+        normalised_matrix, normalised_matrix, transpose_b=True
+    )
+    return pairwise_dot_products
+
+
 class TrainingLogger(tf.keras.callbacks.Callback):
     def __init__(
         self,
@@ -78,17 +87,35 @@ class TrainingLogger(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch: int, logs=None) -> None:
         print()
-        print("Train metrics: ", end="")
+        print("Train metrics:", end="")
         train_metrics = self.model.evaluate(
             self._train, return_dict=True, verbose=2, steps=1
         )
-        print("Val metrics:   ", end="")
+        print("Val metrics:  ", end="")
         val_metrics = self.model.evaluate(
             self._val, return_dict=True, verbose=2, steps=1
         )
-        print()
+        layer_weight_norms = {
+            t.name: float(tf.norm(t).numpy())
+            for t in self.model.trainable_weights
+        }
+        print(
+            "Last layer weight norm:", layer_weight_norms["to_logits/kernel:0"]
+        )
+        embedding_min_similarity = float(
+            tf.reduce_min(
+                rowwise_cosine_similarity(self.model.trainable_weights[0])
+            ).numpy()
+        )
+        print("Embedding max cos dist:", embedding_min_similarity)
 
-        record = {"epoch": epoch, "train": train_metrics, "val": val_metrics}
+        record = {
+            "epoch": epoch,
+            "train": train_metrics,
+            "val": val_metrics,
+            "layer_weight_norms": layer_weight_norms,
+            "embedding_min_similarity": embedding_min_similarity,
+        }
         with self.history_file.open("a") as f:
             f.write(json.dumps(record) + "\n")
 
