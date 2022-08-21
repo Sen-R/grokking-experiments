@@ -59,6 +59,7 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
 @click.option(
     "--learning-rate", type=float, default=1e-3, help="Learning rate."
 )
+@click.option("--weight-decay", type=float, default=0.0, help="Weight decay.")
 @click.option(
     "--beta_1", type=float, default=0.9, help="Adam beta_1 parameter."
 )
@@ -92,6 +93,7 @@ def run_experiment(
     heads: int,
     dropout: float,
     learning_rate: float,
+    weight_decay: float,
     beta_1: float,
     beta_2: float,
     epsilon: float,
@@ -146,8 +148,9 @@ def run_experiment(
             loss=tf.keras.losses.SparseCategoricalCrossentropy(
                 from_logits=True
             ),
-            optimizer=tf.keras.optimizers.Adam(
+            optimizer=tf.keras.optimizers.experimental.AdamW(
                 learning_rate=learning_rate,
+                weight_decay=weight_decay,
                 beta_1=beta_1,
                 beta_2=beta_2,
                 epsilon=epsilon,
