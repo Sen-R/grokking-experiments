@@ -10,22 +10,23 @@ def transformer_layer(
     attention_mask: tf.Tensor,
     dropout: Optional[float] = None,
 ):
+    """Pre-layer norm, otherwise standard."""
     # MHA block
+    mha_pre_ln = layers.LayerNormalization()(inputs)
     mha_out = layers.MultiHeadAttention(
         key_dim=width // heads, num_heads=heads, dropout=dropout
-    )(inputs, inputs, attention_mask=attention_mask)
+    )(mha_pre_ln, mha_pre_ln, attention_mask=attention_mask)
     mha_dropout = layers.Dropout(dropout)(mha_out)
     mha_add = layers.add([mha_dropout, inputs])
-    mha_ln = layers.LayerNormalization()(mha_add)
 
     # FF block
-    dense_1_out = layers.Dense(width, activation="relu")(mha_ln)
-    dense_2_out = layers.Dense(width)(dense_1_out)
-    ff_dropout = layers.Dropout(dropout)(dense_2_out)
-    ff_add = layers.add([ff_dropout, mha_ln])
-    ff_ln = layers.LayerNormalization()(ff_add)
+    ff_pre_ln = layers.LayerNormalization()(mha_add)
+    ff_dense_1_out = layers.Dense(width, activation="relu")(ff_pre_ln)
+    ff_dense_2_out = layers.Dense(width)(ff_dense_1_out)
+    ff_dropout = layers.Dropout(dropout)(ff_dense_2_out)
+    ff_add = layers.add([ff_dropout, mha_add])
 
-    return ff_ln
+    return ff_add
 
 
 def decoder_transformer_classifier(
@@ -37,10 +38,13 @@ def decoder_transformer_classifier(
     heads: int,
     dropout: Optional[float] = None,
 ) -> tf.keras.Model:
+    """Implements a standard transformer decoder except with pre-layer
+    normalization as described in Xiong et al. (2020)."""
     attention_mask = tf.linalg.band_part(tf.ones((seq_len, seq_len)), -1, 0)
     inputs = tf.keras.Input((seq_len,))
     x = layers.Embedding(vocabulary_size, width)(inputs)
     for _ in range(n_layers):
         x = transformer_layer(x, width, heads, attention_mask, dropout)
-    logits = layers.Dense(n_classes, name="to_logits")(x[..., -1, :])
+    x_ln = layers.LayerNormalization()(x)
+    logits = layers.Dense(n_classes, name="to_logits")(x_ln[..., -1, :])
     return tf.keras.Model(inputs=[inputs], outputs=[logits])
