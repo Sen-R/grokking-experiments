@@ -1,8 +1,10 @@
 from itertools import product
+import pytest
 from grokking.datasets import (
     binary_operation_dataset,
     modular_division_dataset,
     cubic_polynomial_dataset,
+    load,
 )
 
 
@@ -45,3 +47,13 @@ def test_cubic_polynomial_dataset() -> None:
     assert max(e.y for e in dataset) == p - 1
     for x, y, res in dataset:
         assert res == (x**3 + x * y**2 + y) % p
+
+
+class TestLoad:
+    @pytest.mark.parametrize(
+        "name,p,length",
+        [("modular_division", 5, 20), ("cubic_polynomial", 5, 25)],
+    )
+    def test_call(self, name: str, p: int, length: int) -> None:
+        equations = load(name, p=p)
+        assert len(equations) == length

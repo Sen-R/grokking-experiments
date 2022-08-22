@@ -37,3 +37,13 @@ def cubic_polynomial_dataset(p: int) -> List[Equation]:
     return binary_operation_dataset(
         (lambda x, y: (x**3 + x * y**2 + y) % p), max_x_y, min_y
     )
+
+
+_known_datasets = {
+    "modular_division": modular_division_dataset,
+    "cubic_polynomial": cubic_polynomial_dataset,
+}
+
+
+def load(name: str, **kwargs) -> List[Equation]:
+    return _known_datasets[name](**kwargs)

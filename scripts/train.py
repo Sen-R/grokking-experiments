@@ -102,13 +102,11 @@ def run_experiment(
     steps_per_epoch: int,
     steps_per_execution: int,
 ) -> None:
-    if dataset != "modular_division":
-        raise ValueError("Only modular division dataset supported right now.")
     training_parameters = get_and_print_training_parameters(locals())
 
     click.echo("Preparing dataset...")
     # Obtain raw dataset and convert to numpy features and targets
-    all_equations = datasets.modular_division_dataset(p)
+    all_equations = datasets.load(dataset, p=p)
     X = np.array([[equation.x, equation.y] for equation in all_equations])
     y = np.array([equation.res for equation in all_equations])
     n_classes = np.max(y) + 1
@@ -154,6 +152,7 @@ def run_experiment(
                 beta_1=beta_1,
                 beta_2=beta_2,
                 epsilon=epsilon,
+                jit_compile=False,
             ),
             metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
             steps_per_execution=steps_per_execution,  # accelerate training
