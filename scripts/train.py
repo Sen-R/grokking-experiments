@@ -2,6 +2,7 @@ from typing import Dict, Any
 import click
 import numpy as np
 import tensorflow as tf  # type: ignore
+import tensorflow_addons as tfa  # type: ignore
 from grokking import datasets, models, training
 
 
@@ -142,18 +143,29 @@ def run_experiment(
         logger = training.TrainingLogger(
             training_parameters, train, val, results_dir
         )
-        model.compile(
-            loss=tf.keras.losses.SparseCategoricalCrossentropy(
-                from_logits=True
-            ),
-            optimizer=tf.keras.optimizers.experimental.AdamW(
+        if weight_decay == 0.0:
+            # Previous runs used original Adam for no weight decay
+            # so preserving this implementation for consistency
+            optimizer = tf.keras.optimizers.Adam(
+                learning_rate=learning_rate,
+                beta_1=beta_1,
+                beta_2=beta_2,
+                epsilon=epsilon,
+            )
+        else:
+            click.echo("Using AdamW as weight decay turned on.")
+            optimizer = tfa.optimizers.AdamW(
                 learning_rate=learning_rate,
                 weight_decay=weight_decay,
                 beta_1=beta_1,
                 beta_2=beta_2,
                 epsilon=epsilon,
-                jit_compile=False,
+            )
+        model.compile(
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(
+                from_logits=True
             ),
+            optimizer=optimizer,
             metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
             steps_per_execution=steps_per_execution,  # accelerate training
         )
