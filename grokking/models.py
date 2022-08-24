@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence
 import tensorflow as tf  # type: ignore
 from tensorflow.keras import layers  # type: ignore
 
@@ -47,4 +47,25 @@ def decoder_transformer_classifier(
         x = transformer_layer(x, width, heads, attention_mask, dropout)
     x_ln = layers.LayerNormalization()(x)
     logits = layers.Dense(n_classes, name="to_logits")(x_ln[..., -1, :])
+    return tf.keras.Model(inputs=[inputs], outputs=[logits])
+
+
+def embedding_summing_mlp(
+    n_input_tokens: int,
+    n_output_tokens: int,
+    embedding_dim: int,
+    hidden_layers: Sequence[int],
+) -> tf.keras.Model:
+    """Model sums embeddings and applies an MLP, in the vein of
+    Liu et al. (Arxiv: 2205.10343)."""
+
+    inputs = tf.keras.Input((None,))
+    embeddings = layers.Embedding(n_input_tokens, embedding_dim)(inputs)
+    x = tf.reduce_sum(embeddings, axis=1)
+
+    for n_units in hidden_layers:
+        x = layers.Dense(n_units, activation="relu")(x)
+
+    logits = layers.Dense(n_output_tokens, name="to_logits")(x)
+
     return tf.keras.Model(inputs=[inputs], outputs=[logits])

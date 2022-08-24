@@ -1,5 +1,9 @@
 import tensorflow as tf  # type: ignore
-from grokking.models import transformer_layer, decoder_transformer_classifier
+from grokking.models import (
+    transformer_layer,
+    decoder_transformer_classifier,
+    embedding_summing_mlp,
+)
 
 
 class TestTransformerLayer:
@@ -34,3 +38,23 @@ class TestDecoderTransformerClassifier:
         logits = model(inputs)
 
         assert list(logits.shape) == [batch_size, n_classes]
+
+
+class TestEmbeddingSummingMLP:
+    def test_input_output_shapes(self) -> None:
+        n_input_tokens = 4
+        n_output_tokens = 6
+        embedding_dim = 2
+        hidden_layers = [32, 32]
+
+        inputs = tf.constant([[0, 1], [2, 3], [0, 3]])
+        batch_size, seq_len = inputs.shape
+
+        model = embedding_summing_mlp(
+            n_input_tokens, n_output_tokens, embedding_dim, hidden_layers
+        )
+        model.summary()
+        assert len(model.layers) == 6  # input, embed, sum, hidden, logits
+        logits = model(inputs)
+
+        assert list(logits.shape) == [batch_size, n_output_tokens]
