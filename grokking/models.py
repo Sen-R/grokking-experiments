@@ -31,8 +31,8 @@ def transformer_layer(
 
 def decoder_transformer_classifier(
     seq_len: int,
-    vocabulary_size: int,
-    n_classes: int,
+    n_input_tokens: int,
+    n_output_tokens: int,
     n_layers: int,
     width: int,
     heads: int,
@@ -42,15 +42,16 @@ def decoder_transformer_classifier(
     normalization as described in Xiong et al. (2020)."""
     attention_mask = tf.linalg.band_part(tf.ones((seq_len, seq_len)), -1, 0)
     inputs = tf.keras.Input((seq_len,))
-    x = layers.Embedding(vocabulary_size, width)(inputs)
+    x = layers.Embedding(n_input_tokens, width)(inputs)
     for _ in range(n_layers):
         x = transformer_layer(x, width, heads, attention_mask, dropout)
     x_ln = layers.LayerNormalization()(x)
-    logits = layers.Dense(n_classes, name="to_logits")(x_ln[..., -1, :])
+    logits = layers.Dense(n_output_tokens, name="to_logits")(x_ln[..., -1, :])
     return tf.keras.Model(inputs=[inputs], outputs=[logits])
 
 
 def embedding_summing_mlp(
+    seq_len: int,
     n_input_tokens: int,
     n_output_tokens: int,
     embedding_dim: int,

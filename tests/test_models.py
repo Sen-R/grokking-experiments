@@ -51,7 +51,11 @@ class TestEmbeddingSummingMLP:
         batch_size, seq_len = inputs.shape
 
         model = embedding_summing_mlp(
-            n_input_tokens, n_output_tokens, embedding_dim, hidden_layers
+            seq_len,
+            n_input_tokens,
+            n_output_tokens,
+            embedding_dim,
+            hidden_layers,
         )
         model.summary()
         assert len(model.layers) == 6  # input, embed, sum, hidden, logits
