@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Dict, Any
 import tensorflow as tf  # type: ignore
 from tensorflow.keras import layers  # type: ignore
 
@@ -70,3 +70,54 @@ def embedding_summing_mlp(
     logits = layers.Dense(n_output_tokens, name="to_logits")(x)
 
     return tf.keras.Model(inputs=[inputs], outputs=[logits])
+
+
+def transformer_builder(
+    seq_len: int,
+    n_input_tokens: int,
+    n_output_tokens: int,
+    params: Dict[str, Any],
+) -> tf.keras.Model:
+    return decoder_transformer_classifier(
+        seq_len,
+        n_input_tokens,
+        n_output_tokens,
+        params["layers"],
+        params["width"],
+        params["heads"],
+        params["dropout"],
+    )
+
+
+def mlp_builder(
+    seq_len: int,
+    n_input_tokens: int,
+    n_output_tokens: int,
+    params: Dict[str, Any],
+) -> tf.keras.Model:
+    hidden_layers = [int(el) for el in params["hidden_layers"].split(",")]
+    return embedding_summing_mlp(
+        seq_len,
+        n_input_tokens,
+        n_output_tokens,
+        params["width"],
+        hidden_layers,
+    )
+
+
+_registered_builders = {
+    "transformer": transformer_builder,
+    "mlp": mlp_builder,
+}
+
+
+def build(
+    name: str,
+    seq_len: int,
+    n_input_tokens: int,
+    n_output_tokens: int,
+    params: Dict[str, Any],
+) -> tf.keras.Model:
+    return _registered_builders[name](
+        seq_len, n_input_tokens, n_output_tokens, params
+    )

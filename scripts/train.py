@@ -46,6 +46,13 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
     help="Maximum batch size (could be smaller for small datasets).",
 )
 @click.option(
+    "--model",
+    "model_name",
+    type=str,
+    default="transformer",
+    help="Model architecture.",
+)
+@click.option(
     "--layers", type=int, default=2, help="Number of transformer layers."
 )
 @click.option(
@@ -56,6 +63,12 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
 )
 @click.option(
     "--dropout", type=float, default=0.0, help="Dropout probability."
+)
+@click.option(
+    "--hidden-layers",
+    type=str,
+    default="200,200,30",
+    help="Hidden layers for MLP model as comma separated list.",
 )
 @click.option(
     "--learning-rate", type=float, default=1e-3, help="Learning rate."
@@ -89,10 +102,12 @@ def run_experiment(
     train_frac: float,
     shuffle_seed: int,
     p: int,
+    model_name: str,
     layers: int,
     width: int,
     heads: int,
     dropout: float,
+    hidden_layers: str,
     learning_rate: float,
     weight_decay: float,
     beta_1: float,
@@ -137,8 +152,8 @@ def run_experiment(
 
     click.echo("\nStarting training...")
     with training.strategy.scope():
-        model = models.decoder_transformer_classifier(
-            2, n_classes, n_classes, layers, width, heads, dropout
+        model = models.build(
+            model_name, 2, n_classes, n_classes, training_parameters
         )
         logger = training.TrainingLogger(
             training_parameters, train, val, results_dir_prefix
