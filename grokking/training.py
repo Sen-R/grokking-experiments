@@ -43,17 +43,21 @@ class TrainingLogger(tf.keras.callbacks.Callback):
         training_parameters: Dict[str, Any],
         train,
         val,
-        results_dir: str,
+        results_prefix: str,
     ):
         super().__init__()
         self._train = train.batch(len(train)).cache()
         self._val = val.batch(len(val)).cache()
-        results_dir_p = Path(results_dir)
+        results_dir_and_prefix = Path(results_prefix)
+        results_dir = results_dir_and_prefix.parent
+        results_prefix = results_dir_and_prefix.name
 
-        if not results_dir_p.is_dir():
+        if not results_dir.is_dir():
             raise ValueError(f"Directory doesn't exist: {results_dir}")
 
-        self.run_dir = results_dir_p / f"{datetime.now():%y%m%d%H%M%S}"
+        self.run_dir = (
+            results_dir / f"{results_prefix}{datetime.now():%y%m%d%H%M%S}"
+        )
         self.run_dir.mkdir()
 
         json.dump(training_parameters, self.params_file.open("w"))

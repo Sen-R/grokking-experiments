@@ -8,7 +8,7 @@ from grokking import datasets, models, training
 
 def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
     params = args.copy()
-    params.pop("results_dir")
+    params.pop("results_dir_prefix")
     click.echo("Training called with parameters:")
     for k, v in params.items():
         click.echo(f"  {k}: {v}")
@@ -17,7 +17,7 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @click.command
-@click.argument("results_dir", type=str)
+@click.argument("results_dir_prefix", type=str)
 @click.option(
     "--dataset", default="modular_division", type=str, help="Dataset to use."
 )
@@ -84,7 +84,7 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
     help="Steps per inner loop execution.",
 )
 def run_experiment(
-    results_dir: str,
+    results_dir_prefix: str,
     dataset: str,
     train_frac: float,
     shuffle_seed: int,
@@ -141,7 +141,7 @@ def run_experiment(
             2, n_classes, n_classes, layers, width, heads, dropout
         )
         logger = training.TrainingLogger(
-            training_parameters, train, val, results_dir
+            training_parameters, train, val, results_dir_prefix
         )
         if weight_decay == 0.0:
             # Previous runs used original Adam for no weight decay
