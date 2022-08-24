@@ -18,17 +18,22 @@ def binary_operation_dataset(
     ]
 
 
-def _modular_div_op(p: int) -> Callable[[int, int], int]:
-    def modular_div(x: int, y: int) -> int:
+def modular_division_dataset(p: int) -> List[Equation]:
+    def mod_div_p(x: int, y: int) -> int:
         return (x * modinv(y, p)) % p
 
-    return modular_div
-
-
-def modular_division_dataset(p: int) -> List[Equation]:
     max_x_y = p - 1
     min_y = 1
-    return binary_operation_dataset(_modular_div_op(p), max_x_y, min_y)
+    return binary_operation_dataset(mod_div_p, max_x_y, min_y)
+
+
+def modular_addition_dataset(p: int) -> List[Equation]:
+    def mod_add_p(x: int, y: int) -> int:
+        return (x + y) % p
+
+    max_x_y = p - 1
+    min_y = 0
+    return binary_operation_dataset(mod_add_p, max_x_y, min_y)
 
 
 def cubic_polynomial_dataset(p: int) -> List[Equation]:
@@ -41,6 +46,7 @@ def cubic_polynomial_dataset(p: int) -> List[Equation]:
 
 _known_datasets = {
     "modular_division": modular_division_dataset,
+    "modular_addition": modular_addition_dataset,
     "cubic_polynomial": cubic_polynomial_dataset,
 }
 

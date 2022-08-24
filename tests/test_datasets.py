@@ -1,11 +1,6 @@
 from itertools import product
 import pytest
-from grokking.datasets import (
-    binary_operation_dataset,
-    modular_division_dataset,
-    cubic_polynomial_dataset,
-    load,
-)
+from grokking.datasets import binary_operation_dataset, load
 
 
 class TestBinaryOperationDataset:
@@ -27,26 +22,42 @@ class TestBinaryOperationDataset:
             assert equation.res == binary_op(equation.x, equation.y)
 
 
-def test_modular_division_dataset() -> None:
-    p = 5
-    dataset = modular_division_dataset(p=p)
+@pytest.mark.parametrize(
+    "name,p,max_x_y,min_y,test",
+    [
+        [
+            "modular_division",
+            5,
+            4,
+            1,
+            (lambda p, x, y, res: (res * y % p) - x),
+        ],
+        [
+            "cubic_polynomial",
+            5,
+            4,
+            0,
+            (lambda p, x, y, res: (x**3 + x * y**2 + y) % p - res),
+        ],
+        [
+            "modular_addition",
+            5,
+            4,
+            0,
+            (lambda p, x, y, res: (x + y) % p - res),
+        ],
+    ],
+)
+def test_modular_division_dataset(
+    name: str, p: int, max_x_y: int, min_y: int, test
+) -> None:
+    dataset = load(name, p=p)
     assert min(e.x for e in dataset) == 0
-    assert max(e.x for e in dataset) == p - 1
-    assert min(e.y for e in dataset) == 1
-    assert max(e.y for e in dataset) == p - 1
+    assert max(e.x for e in dataset) == max_x_y
+    assert min(e.y for e in dataset) == min_y
+    assert max(e.y for e in dataset) == max_x_y
     for x, y, res in dataset:
-        assert res * y % p == x
-
-
-def test_cubic_polynomial_dataset() -> None:
-    p = 5
-    dataset = cubic_polynomial_dataset(p=p)
-    assert min(e.x for e in dataset) == 0
-    assert max(e.x for e in dataset) == p - 1
-    assert min(e.y for e in dataset) == 0
-    assert max(e.y for e in dataset) == p - 1
-    for x, y, res in dataset:
-        assert res == (x**3 + x * y**2 + y) % p
+        assert test(p, x, y, res) == 0
 
 
 class TestLoad:
