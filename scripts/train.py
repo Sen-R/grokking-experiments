@@ -123,8 +123,7 @@ def run_experiment(
     click.echo("Preparing dataset...")
     # Obtain raw dataset and convert to numpy features and targets
     all_equations = datasets.load(dataset, p=p)
-    X = np.array([[equation.x, equation.y] for equation in all_equations])
-    y = np.array([equation.res for equation in all_equations])
+    X, y = training.equations_to_arrays(all_equations)
     n_classes = np.max(y) + 1
 
     # Shuffle, split and create TF datasets

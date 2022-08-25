@@ -1,7 +1,13 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_array_equal
-from grokking.training import shuffle, train_test_split, _get_n_rows
+from grokking.datasets import Equation
+from grokking.training import (
+    shuffle,
+    train_test_split,
+    _get_n_rows,
+    equations_to_arrays,
+)
 
 
 np.random.seed(298374)
@@ -38,3 +44,14 @@ class TestTrainTestSplit:
         assert_array_equal(yt, y[:3])
         assert_array_equal(Xv, X[3:])
         assert_array_equal(yv, y[3:])
+
+
+class TestEquationsToArrays:
+    def test_functionality(self) -> None:
+        equations = [
+            Equation(1, 1, 2),
+            Equation(2, 2, 4),
+        ]
+        X, y = equations_to_arrays(equations)
+        assert_array_equal(X, [[1, 1], [2, 2]])
+        assert_array_equal(y, [2, 4])

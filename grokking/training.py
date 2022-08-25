@@ -6,6 +6,7 @@ from datetime import datetime
 import numpy as np
 import numpy.typing as npt
 import tensorflow as tf  # type: ignore
+from .datasets import Equation
 
 
 def _get_strategy():
@@ -26,6 +27,14 @@ def _get_strategy():
 
 
 strategy = _get_strategy()  # Set up once when module is loaded
+
+
+def equations_to_arrays(
+    equations: Sequence[Equation],
+) -> Tuple[npt.NDArray, npt.NDArray]:
+    X = np.array([[equation.x, equation.y] for equation in equations])
+    y = np.array([equation.res for equation in equations])
+    return X, y
 
 
 def rowwise_cosine_similarity(embedding_matrix: tf.Tensor) -> tf.Tensor:
