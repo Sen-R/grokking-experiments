@@ -130,12 +130,11 @@ _registered_builders = {
 
 
 def build(
-    name: str,
     seq_len: int,
     n_input_tokens: int,
     n_output_tokens: int,
     params: Dict[str, Any],
 ) -> tf.keras.Model:
-    return _registered_builders[name](
+    return _registered_builders[params["model_name"]](
         seq_len, n_input_tokens, n_output_tokens, params
     )

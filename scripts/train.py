@@ -152,9 +152,7 @@ def run_experiment(
 
     click.echo("\nStarting training...")
     with training.strategy.scope():
-        model = models.build(
-            model_name, 2, n_classes, n_classes, training_parameters
-        )
+        model = models.build(2, n_classes, n_classes, training_parameters)
         logger = training.TrainingLogger(
             training_parameters, train, val, results_dir_prefix
         )
