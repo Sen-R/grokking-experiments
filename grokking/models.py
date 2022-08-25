@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Dict, Any
+from typing import Optional, Sequence, Dict, Any, Callable
 import tensorflow as tf  # type: ignore
 from tensorflow.keras import layers  # type: ignore
 
@@ -56,6 +56,8 @@ def embedding_summing_mlp(
     n_output_tokens: int,
     embedding_dim: int,
     hidden_layers: Sequence[int],
+    ln_pre_mlp: bool = False,
+    ln_post_mlp: bool = False,
 ) -> tf.keras.Model:
     """Model sums embeddings and applies an MLP, in the vein of
     Liu et al. (Arxiv: 2205.10343)."""
@@ -64,8 +66,14 @@ def embedding_summing_mlp(
     embeddings = layers.Embedding(n_input_tokens, embedding_dim)(inputs)
     x = tf.reduce_sum(embeddings, axis=1)
 
+    if ln_pre_mlp:
+        x = layers.LayerNormalization()(x)
+
     for n_units in hidden_layers:
         x = layers.Dense(n_units, activation="relu")(x)
+
+    if ln_post_mlp:
+        x = layers.LayerNormalization()(x)
 
     logits = layers.Dense(n_output_tokens, name="to_logits")(x)
 
@@ -90,24 +98,34 @@ def transformer_builder(
 
 
 def mlp_builder(
-    seq_len: int,
-    n_input_tokens: int,
-    n_output_tokens: int,
-    params: Dict[str, Any],
-) -> tf.keras.Model:
-    hidden_layers = [int(el) for el in params["hidden_layers"].split(",")]
-    return embedding_summing_mlp(
-        seq_len,
-        n_input_tokens,
-        n_output_tokens,
-        params["width"],
-        hidden_layers,
-    )
+    ln_pre_mlp: bool, ln_post_mlp: bool
+) -> Callable[[int, int, int, Dict[str, Any]], tf.keras.Model]:
+    def inner_builder(
+        seq_len: int,
+        n_input_tokens: int,
+        n_output_tokens: int,
+        params: Dict[str, Any],
+    ) -> tf.keras.Model:
+        hidden_layers = [int(el) for el in params["hidden_layers"].split(",")]
+        return embedding_summing_mlp(
+            seq_len,
+            n_input_tokens,
+            n_output_tokens,
+            params["width"],
+            hidden_layers,
+            ln_pre_mlp,
+            ln_post_mlp,
+        )
+
+    return inner_builder
 
 
 _registered_builders = {
     "transformer": transformer_builder,
-    "mlp": mlp_builder,
+    "mlp": mlp_builder(False, False),
+    "mlp_pre_ln": mlp_builder(True, False),
+    "mlp_post_ln": mlp_builder(False, True),
+    "mlp_both_ln": mlp_builder(True, True),
 }
 
 

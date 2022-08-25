@@ -1,3 +1,4 @@
+import pytest
 import tensorflow as tf  # type: ignore
 from grokking.models import (
     transformer_layer,
@@ -62,3 +63,18 @@ class TestEmbeddingSummingMLP:
         logits = model(inputs)
 
         assert list(logits.shape) == [batch_size, n_output_tokens]
+
+    @pytest.mark.parametrize(
+        "pre,post,n_layers",
+        [
+            (False, False, 6),
+            (False, True, 7),
+            (True, False, 7),
+            (True, True, 8),
+        ],
+    )
+    def test_ln_options(self, pre: bool, post: bool, n_layers: int) -> None:
+        model = embedding_summing_mlp(
+            2, 4, 4, 1, [8, 8], ln_pre_mlp=pre, ln_post_mlp=post
+        )
+        assert len(model.layers) == n_layers
