@@ -122,7 +122,7 @@ def _dataset_to_matrix(
     mat = np.tile(missing_value, np.prod(shape)).reshape([*shape, -1])
     for (x, y), value in zip(inputs, values):
         mat[x, y] = value
-    return mat
+    return mat.squeeze()
 
 
 def visualise(
