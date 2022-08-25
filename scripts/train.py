@@ -184,6 +184,9 @@ def run_experiment(
             metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
             steps_per_execution=steps_per_execution,  # accelerate training
         )
+        click.echo()
+        model.summary()
+        click.echo()
         try:
             model.fit(
                 dist_batched_train,
