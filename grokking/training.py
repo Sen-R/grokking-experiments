@@ -117,7 +117,7 @@ class TrainingLogger(tf.keras.callbacks.Callback):
         )
         embedding_min_similarity = float(
             tf.reduce_min(
-                rowwise_cosine_similarity(self.model.trainable_weights[0])
+                rowwise_cosine_similarity(self.model.weights[0])
             ).numpy()
         )
         print("Embedding max cos dist:", embedding_min_similarity)
