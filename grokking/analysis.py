@@ -23,6 +23,7 @@ _param_defaults = {
     "width": 128,
     "heads": 4,
     "dropout": 0.0,
+    "embedding_weights": "learned",
     "hidden_layers": [200, 200, 30],
     "learning_rate": 1e-3,
     "weight_decay": 0.0,

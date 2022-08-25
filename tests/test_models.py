@@ -1,9 +1,12 @@
+from typing import Dict, Any
 import pytest
+from numpy.testing import assert_array_almost_equal
 import tensorflow as tf  # type: ignore
 from grokking.models import (
     transformer_layer,
     decoder_transformer_classifier,
     embedding_summing_mlp,
+    build,
 )
 
 
@@ -78,3 +81,32 @@ class TestEmbeddingSummingMLP:
             2, 4, 4, 1, [8, 8], ln_pre_mlp=pre, ln_post_mlp=post
         )
         assert len(model.layers) == n_layers
+
+
+def get_test_params(option: str) -> Dict[str, Any]:
+    return {
+        "model_name": "transformer",
+        "layers": 1,
+        "width": 4,
+        "heads": 1,
+        "dropout": 0.0,
+        "embedding_weights": option,
+    }
+
+
+class TestPrepareEmbeddingWeights:
+    def test_default_option(self):
+        model = build(2, 5, 5, get_test_params("learned"))
+        assert model.layers[1].trainable
+
+    def test_random_option(self):
+        model = build(2, 5, 5, get_test_params("random"))
+        assert not model.layers[1].trainable
+
+    def test_circular_option(self):
+        model = build(2, 4, 6, get_test_params("circular"))
+        assert not model.layers[1].trainable
+        assert len(model.layers[1].weights) == 1
+        weights = model.layers[1].get_weights()[0]
+        assert_array_almost_equal(weights[:, 0], [1, 0, -1, 0])
+        assert_array_almost_equal(weights[:, 1], [0, 1, 0, -1])

@@ -1,4 +1,5 @@
 from typing import Optional, Sequence, Dict, Any, Callable
+import numpy as np
 import tensorflow as tf  # type: ignore
 from tensorflow.keras import layers  # type: ignore
 
@@ -129,12 +130,39 @@ _registered_builders = {
 }
 
 
+def _prepare_embedding_weights(
+    layer: tf.keras.layers.Layer,
+    option: str,
+) -> None:
+    if not isinstance(layer, tf.keras.layers.Embedding):
+        raise ValueError(f"Layer isn't an embedding layer: {type(layer)}")
+    if option is None or option == "learned":
+        return
+    elif option == "random":
+        layer.trainable = False
+    elif option == "circular":
+        assert len(layer.weights) == 1
+        weights = layer.get_weights()[0]
+        n_tokens = len(weights)
+        ang_freq = 2.0 * np.pi / n_tokens
+        weights[:, 0] = np.cos(ang_freq * np.arange(n_tokens))
+        weights[:, 1] = np.sin(ang_freq * np.arange(n_tokens))
+        layer.set_weights([weights])
+        layer.trainable = False
+    else:
+        raise ValueError(f"Unrecognised option: {option}")
+
+
 def build(
     seq_len: int,
     n_input_tokens: int,
     n_output_tokens: int,
     params: Dict[str, Any],
 ) -> tf.keras.Model:
-    return _registered_builders[params["model_name"]](
+    model = _registered_builders[params["model_name"]](
         seq_len, n_input_tokens, n_output_tokens, params
     )
+    _prepare_embedding_weights(
+        model.layers[1], params.get("embedding_weights", "learned")
+    )
+    return model

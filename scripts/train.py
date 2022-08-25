@@ -65,6 +65,12 @@ def get_and_print_training_parameters(args: Dict[str, Any]) -> Dict[str, Any]:
     "--dropout", type=float, default=0.0, help="Dropout probability."
 )
 @click.option(
+    "--embedding-weights",
+    type=str,
+    default="learned",
+    help="Should embeddings be learned, random or circular.",
+)
+@click.option(
     "--hidden-layers",
     type=str,
     default="200,200,30",
@@ -107,6 +113,7 @@ def run_experiment(
     width: int,
     heads: int,
     dropout: float,
+    embedding_weights: str,
     hidden_layers: str,
     learning_rate: float,
     weight_decay: float,
