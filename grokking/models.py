@@ -38,12 +38,18 @@ def decoder_transformer_classifier(
     width: int,
     heads: int,
     dropout: Optional[float] = None,
+    embedding_dim: Optional[int] = None,
 ) -> tf.keras.Model:
     """Implements a standard transformer decoder except with pre-layer
     normalization as described in Xiong et al. (2020)."""
+    embedding_dim = width if embedding_dim is None else embedding_dim
     attention_mask = tf.linalg.band_part(tf.ones((seq_len, seq_len)), -1, 0)
     inputs = tf.keras.Input((seq_len,))
-    x = layers.Embedding(n_input_tokens, width)(inputs)
+    x = layers.Embedding(n_input_tokens, embedding_dim)(inputs)
+    if embedding_dim != width:
+        # Dense transformation to required width before running through
+        # transformer layers
+        x = layers.Dense(width, name="expand_to_width")(x)
     for _ in range(n_layers):
         x = transformer_layer(x, width, heads, attention_mask, dropout)
     x_ln = layers.LayerNormalization()(x)
@@ -87,6 +93,9 @@ def transformer_builder(
     n_output_tokens: int,
     params: Dict[str, Any],
 ) -> tf.keras.Model:
+    embedding_dim = (
+        2 if params.get("embedding_weights") == "circular" else None
+    )
     return decoder_transformer_classifier(
         seq_len,
         n_input_tokens,
@@ -95,6 +104,7 @@ def transformer_builder(
         params["width"],
         params["heads"],
         params["dropout"],
+        embedding_dim,
     )
 
 
