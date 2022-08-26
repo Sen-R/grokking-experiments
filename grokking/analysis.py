@@ -141,6 +141,7 @@ def visualise(
     inputs: npt.NDArray[np.int_],
     res: npt.NDArray[np.int_],
     permute_token_orders: bool,
+    rgb_for_missing: Tuple[float, float, float],
     seed=None,
     ax=None,
     **kwargs,
@@ -160,7 +161,15 @@ def visualise(
     rgb = hsv_to_rgb(hsv)
 
     mat = _dataset_to_matrix(
-        inputs, rgb, missing_value=np.array([1.0, 1.0, 1.0])
+        inputs, rgb, missing_value=np.array(rgb_for_missing)
     )
     ax = plt.gca() if ax is None else ax
     ax.imshow(mat)
+    ax.tick_params(
+        axis="both",
+        which="both",
+        bottom=False,
+        left=False,
+        labelbottom=False,
+        labelleft=False,
+    )
