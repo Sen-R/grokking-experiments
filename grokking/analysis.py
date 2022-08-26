@@ -1,7 +1,7 @@
 """Components for loading and analysing experiment results."""
 
 
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 from pathlib import Path
 import json
 import pandas as pd  # type: ignore
@@ -99,6 +99,17 @@ class Run:
         )
         checkpoint.restore(ckpt_path).expect_partial()
         return model
+
+    def predictions_for_epoch(
+        self, epoch: int, split: str
+    ) -> Tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]]:
+        if split not in ("train", "val"):
+            raise ValueError(f"Invalid split: {split}")
+        model = self.model_for_epoch(epoch)
+        X = getattr(self, split)[0]
+        logits = model(tf.constant(X)).numpy()
+        preds = np.argmax(logits, axis=-1)
+        return X, preds
 
     def learning_curves(
         self, metric: str, ax=None, xlim=None, ylim=None, ylabel=None
